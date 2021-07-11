@@ -14,6 +14,10 @@ img, canvas {
 <h2>Hello OpenCV.js</h2>
 <p id="status">OpenCV.js is loading...</p>
 <div>
+  <video id="videoInput" autoplay></video>
+  <canvas id ="canvasFrame"></canvas>
+  <canvas id="canvasOutput"></canvas>
+  <button onclick="startButton()">start!</button>
   <div class="inputoutput">
     <img id="imageSrc" alt="No Image" />
     <div class="caption">imageSrc <input type="file" id="fileInput" name="file" /></div>
@@ -30,6 +34,9 @@ inputElement.addEventListener('change', (e) => {
   imgElement.src = URL.createObjectURL(e.target.files[0]);
 }, false);
 
+// video
+let video = document.getElementById('videoInput');
+// cv load
 imgElement.onload = function() {
   let src = cv.imread(imgElement);
   let dst = new cv.Mat();
@@ -37,10 +44,59 @@ imgElement.onload = function() {
   cv.imshow('canvasOutput', dst);
   src.delete();
   dst.delete();
+  
 };
+
+
 function onOpenCvReady() {
   document.getElementById('status').innerHTML = 'OpenCV.js is ready.';
 }
+
+
+const startButton = () => {
+  navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+  .then(function(stream) {
+    video.srcObject = stream;
+    video.play();
+
+    let canvasFrame = document.getElementById("canvasFrame"); // canvasFrame은 <canvas>의 ID입니다.
+    let context = canvasFrame.getContext("2d");
+
+    let vsrc = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+    let vdst = new cv.Mat(video.height, video.width, cv.CV_8UC1);
+    let cap = new cv.VideoCapture(video);
+
+    const FPS = 30;
+    function processVideo() {
+        try {
+            if (!streaming) {
+                // clean and stop.
+                vsrc.delete();
+                dst.delete();
+                return;
+            }
+            let begin = Date.now();
+            // start processing.
+            cap.read(vsrc);
+            cv.cvtColor(vsrc, vdst, cv.COLOR_RGBA2GRAY);
+            cv.imshow('canvasOutput', dst);
+            // schedule the next one.
+            let delay = 1000/FPS - (Date.now() - begin);
+            setTimeout(processVideo, delay);
+        } catch (err) {
+            utils.printError(err);
+        }
+    };
+
+// schedule the first one.
+setTimeout(processVideo, 0);
+})
+.catch(function(err) {
+    console.log("An error occurred! " + err);
+});
+}
+
+
 </script>
 <script async src="opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
 </body>
